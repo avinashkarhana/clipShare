@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shared Textbox</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+</head>
+<body>
+    <h1>Shared Textbox</h1>
+    <textarea id="textbox" style="width: 100%; height: 10000px;"></textarea>
+    <script type="text/javascript">
+        const socket = io();
+        let lastText = '';
+        let client_authenticated_with_server = false;
+        let passcode;
+        let server_ip = '{{ server_ip }}';
+        let server_port = '{{ server_port }}';
+        let server_name = '{{ server_name }}';
+        // Define the authenticated_server_info object
+        const authenticated_server_info = {
+            token: '',
+            server_ip: '',
+            server_port: '',
+            passcode: ''
+        };
+
+        // Send the updated text to the server
+        function updateText() {
+            const text = document.getElementById('textbox').value;
+            socket.emit('clipboard_data_to_server', {'clipboard_data': text, 'token': authenticated_server_info.token});
+        }
+
+        // Update the textbox content when receiving updates from the server
+        socket.on('clipboard_data_to_clients', function(data) {
+            if (data.clipboard_data === lastText) {
+                return;
+            }
+            lastText = document.getElementById('textbox').value;
+            document.getElementById('textbox').value = data.clipboard_data;
+            // copy data.clipboard_data to clipboard
+            navigator.clipboard.writeText(data.clipboard_data).then(function() {
+                console.log('Async: Copying to clipboard was successful!');
+            }, function(err) {
+                console.error('Async: Could not copy text: ', err);
+            });
+        });
+
+        // Define the socket event listeners
+        socket.on('authenticate', function(data) {
+            if (data.action === 'initiate_auth') {
+                start_authentication_to_server(data.msg);
+            } else if (data.success === false) {
+                client_authenticated_with_server = false;
+                console.log('Halting client');
+                console.log(data.msg);
+                start_authentication_to_server(data.msg);
+            }
+        });
+
+        socket.on('authentication_to_client', function(data) {
+            if (data.success === true) {
+                authenticated_server_info.token = data.token;
+                authenticated_server_info.server_ip = server_ip;
+                authenticated_server_info.server_port = server_port;
+                authenticated_server_info.passcode = passcode;
+                console.log(`#> Authentication with Server ${authenticated_server_info.server_ip}:${authenticated_server_info.server_port} successful.`);
+                client_authenticated_with_server = true;
+            } else if (data.success === false) {
+                client_authenticated_with_server = false;
+                console.log('#> Server authentication failed.');
+                start_authentication_to_server(data.msg);
+            }
+        });
+
+        // Function to start authentication to the server
+        function start_authentication_to_server(msg) {
+            if (!passcode || passcode === '' || passcode === '1234') {
+                let promtMsg = '';
+                if (msg) {
+                    promtMsg = msg+'\n';
+                }
+                const userInp = prompt(promtMsg+'Do you want to continue with default passcode (1234)? (y/n): ');
+                if (userInp.toLowerCase() === 'n') {
+                    passcode = prompt('Enter passcode: ');
+                } else {
+                    passcode = '1234';
+                }
+            }
+            else{
+                passcode = prompt(msg+'\nEnter passcode: ');
+            }
+            socket.emit('authentication_from_client', { passcode: passcode });
+        }
+
+        // Add an event listener to the textbox to call updateText() when the text changes
+        document.getElementById('textbox').addEventListener('input', updateText);
+    </script>
+</body>
+</html>
+
+
