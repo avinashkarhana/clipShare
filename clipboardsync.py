@@ -11,6 +11,10 @@ import netifaces as ni
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, disconnect
 from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceListener
+import hashlib
+import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad,unpad
 
 app = Flask(__name__)
 sio = python_socketio.Client(ssl_verify=False)
@@ -27,6 +31,7 @@ DEBUG = False
 ADVERTISE_SERVER = False
 passcode = '1234'
 client_authenticated_with_server = False
+encryption_password = '1234567890123456'
 
 USAAGE_STRING = """
 Usage: newClipShare.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
@@ -48,6 +53,29 @@ Examples:
     python newClipShare.py -s 5000 -d
     python newClipShare.py -c -d
 """
+
+##############################################################################################################
+# Encryption Code
+##############################################################################################################
+
+def getMd5(string_data):
+    result = hashlib.md5(string_data.encode('utf-8')).hexdigest()
+    return result
+
+def encrypt(raw):
+    raw = pad(raw.encode(),16)
+    key = key = getMd5(encryption_password)
+    cipher = AES.new(key.encode('utf-8'), AES.MODE_ECB)
+    return base64.b64encode(cipher.encrypt(raw)).decode("utf-8", "ignore")
+
+def decrypt(enc):
+    enc = base64.b64decode(enc)
+    key = getMd5(encryption_password)
+    cipher = AES.new(key.encode('utf-8'), AES.MODE_ECB)
+    decrypted_data = unpad(cipher.decrypt(enc),16)
+    decrypted_data = decrypted_data.decode("utf-8", "ignore")
+    return decrypted_data
+
 
 ##############################################################################################################
 # Server Code
@@ -94,11 +122,13 @@ def on_clipboard_data(data):
     global last_copied_data
     global shared_text
     received_clipboard_data = data.get('clipboard_data')
+    received_clipboard_data = decrypt(received_clipboard_data)
     if last_copied_data != received_clipboard_data:
         pyclip.copy(received_clipboard_data)
         if DEBUG:
             print(f'Copied data received from client {request.sid}: {received_clipboard_data}')
-        shared_text=received_clipboard_data
+        shared_text = received_clipboard_data
+        received_clipboard_data = encrypt(received_clipboard_data)
         emit('clipboard_data_to_clients', {'clipboard_data': received_clipboard_data}, broadcast=True)
 
 def advertise_server():
@@ -161,10 +191,11 @@ def start_server_clipboard_thread():
             if data != last_copied_data and len(data)>0:
                 if DEBUG:
                     print("Sending data to clients:", data)
-                for client in authenticated_clients:
-                    socketio.emit('clipboard_data_to_clients', {'clipboard_data': data}, room=client['clientId'])
                 shared_text = data
                 last_copied_data = data
+                data = encrypt(data)
+                for client in authenticated_clients:
+                    socketio.emit('clipboard_data_to_clients', {'clipboard_data': data}, room=client['clientId'])
             sio.sleep(1)
     try:
         thread = threading.Thread(target=server_clipboard_thread, daemon=True)
@@ -239,6 +270,7 @@ def on_clipboard_data(data):
     if DEBUG:
         print(f'Copied data received from server: {last_copied_data}')
     shared_text=last_copied_data
+    last_copied_data = decrypt(last_copied_data)
     pyclip.copy(last_copied_data)
 
 @sio.on('authentication_to_client')
@@ -251,7 +283,7 @@ def on_authentication_from_server(data):
         authenticated_server_info['server_port'] = server_port
         authenticated_server_info['passcode'] = passcode
         authenticated_server_info['server_name'] = server_name
-        print(f'#> Authentication with Server {authenticated_server_info.get("server_ip")}:{authenticated_server_info.get("server_port")} successful.')
+        print(f'#> Authentication with Server {authenticated_server_info.get("server_name")} ({authenticated_server_info.get("server_ip")}:{authenticated_server_info.get("server_port")}) successful.')
         client_authenticated_with_server = True
     else:
         client_authenticated_with_server = False
@@ -322,8 +354,9 @@ def run_client():
             data = pyclip.paste().decode('utf-8')
             if data != last_copied_data and client_authenticated_with_server:
                 connect_to_server(server_url)
-                sio.emit('clipboard_data_to_server', {'token': authenticated_server_info.get('token'), 'clipboard_data': data })
                 last_copied_data = data
+                data = encrypt(data)
+                sio.emit('clipboard_data_to_server', {'token': authenticated_server_info.get('token'), 'clipboard_data': data })
             sio.sleep(1)
         return
 
@@ -459,6 +492,7 @@ def main():
     global passcode
     global ADVERTISE_SERVER
     global DEBUG
+    global encryption_password
 
 
     parser = argparse.ArgumentParser(description="Clipboard Sync App", add_help=False)
@@ -468,6 +502,7 @@ def main():
     parser.add_argument('-a', '--advertise', action='store_true', help='Advertise server on the local network.')
     parser.add_argument('-n', '--name', type=str, nargs=1, help='Name of the server to advertise.')
     parser.add_argument('-p', '--passcode', type=str, nargs=1, help='Passcode to authenticate clients.')
+    parser.add_argument('-ep', '--encryption-password', type=str, nargs=1, help='Encryption password.')
     parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
 
     args = parser.parse_args()
@@ -477,6 +512,9 @@ def main():
     
     if args.passcode:
         passcode = args.passcode[0]
+
+    if args.encryption_password:
+        encryption_password = args.encryption_password[0]
 
     if args.advertise:
         ADVERTISE_SERVER = True
@@ -516,12 +554,17 @@ def main():
             print("Invalid port number. Please enter a valid port number.")
             exit()
         server_port = int(args.server)
+        print('\nGoing to use encryption password:', encryption_password)
+        print('\nGoing to use passcode:', passcode)
+        print('\nGoing to use server name:', server_name)
         act_as_server()
     
     elif args.client:
         if args.client != -1 and len(args.client) > 0:
                 server_ip = args.client[0].split(':')[0]
                 server_port = args.client[0].split(':')[1]
+        print('\nGoing to use encryption password:', encryption_password)
+        print('\nGoing to use passcode:', passcode)
         act_as_client()
     
     else:
