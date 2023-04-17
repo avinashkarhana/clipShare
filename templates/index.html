@@ -118,7 +118,7 @@
                     promtMsg = msg+'\n';
                 }
                 const userInp = prompt(promtMsg+'Do you want to continue with default passcode (1234)? (y/n): ');
-                if (userInp.toLowerCase() === 'n') {
+                if (userInp.toLowerCase() != 'y') {
                     passcode = prompt('Enter passcode: ');
                 } else {
                     passcode = '1234';

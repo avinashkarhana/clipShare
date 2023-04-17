@@ -602,6 +602,10 @@ def main():
             else:
                 SERVE_ON_NGROK_TUNNEL = False
             ALREADY_RAN = True
+            if DEBUG:
+                print('\nGoing to use encryption password:', encryption_password)
+                print('\nGoing to use passcode:', passcode)
+            print('\nGoing to use server name:', server_name)
             act_as_server()
         elif role.lower() == 'client':
             server_info = input("Enter the server IP and port (e.g., 192.169.1.1:8080): ").split(':')
@@ -618,6 +622,11 @@ def main():
             if server_data_transfer_encryption_password != '':
                 encryption_password = server_data_transfer_encryption_password
             ALREADY_RAN = True
+            if DEBUG:
+                print('\nGoing to use encryption password:', encryption_password)
+                print('\nGoing to use passcode:', passcode)
+            print('\nGoing to use server name:', server_name)
+            print('\nGoing to connect to server:', server_ip, server_port)
             act_as_client()
         else:
             print("Invalid role choice. Please type 'server' or 'client'.")
