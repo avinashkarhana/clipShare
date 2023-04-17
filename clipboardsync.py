@@ -296,10 +296,10 @@ def on_clipboard_data(data):
     global last_copied_data
     global shared_text
     last_copied_data = data.get('clipboard_data')
+    last_copied_data = decrypt(last_copied_data)
     if DEBUG:
         print(f'Copied data received from server: {last_copied_data}')
     shared_text=last_copied_data
-    last_copied_data = decrypt(last_copied_data)
     pyclip.copy(last_copied_data)
 
 @sio.on('authentication_to_client')
@@ -584,6 +584,12 @@ def main():
                 print("Invalid port number. Please enter a valid port number.")
                 exit()
             server_port = int(server_port)
+            server_connection_passcode = input("Enter the passcode to authenticate clients: ")
+            if server_connection_passcode != '':
+                passcode = server_connection_passcode
+            server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
+            if server_data_transfer_encryption_password != '':
+                encryption_password = server_data_transfer_encryption_password
             enable_server_advertisement = input("Do you want to advertise the server on the local network? (y/n): ")
             if enable_server_advertisement.lower() == 'y':
                 ADVERTISE_SERVER = True
@@ -605,6 +611,12 @@ def main():
             else:
                 print("Invalid port number. Please enter a valid port number.")
                 exit()
+            server_connection_passcode = input("Enter the passcode to authenticate clients: ")
+            if server_connection_passcode != '':
+                passcode = server_connection_passcode
+            server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
+            if server_data_transfer_encryption_password != '':
+                encryption_password = server_data_transfer_encryption_password
             ALREADY_RAN = True
             act_as_client()
         else:
