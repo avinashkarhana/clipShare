@@ -15,6 +15,9 @@ import hashlib
 import base64
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad,unpad
+from pyngrok import ngrok
+import os
+import requests
 
 app = Flask(__name__)
 sio = python_socketio.Client(ssl_verify=False)
@@ -29,23 +32,29 @@ server_clipboard_thread_started = False
 QUITTING = False
 DEBUG = False
 ADVERTISE_SERVER = False
+SERVE_ON_NGROK_TUNNEL = False
 passcode = '1234'
 client_authenticated_with_server = False
 encryption_password = '1234567890123456'
+public_url = ''
 
-USAAGE_STRING = """
+# Get current directory
+current_dir = os.path.dirname(os.path.realpath(__file__))
+
+USAAGE_STRING = f"""
 Usage: newClipShare.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
 
 Options:
-    -h, --help            show this help message and exit
+    -h, --help                     Show this help message and exit
     -s, --server [SERVER_PORT_NUMER], --server [SERVER_PORT_NUMER]
-                            Run as server on the specified port.
+                                   Run as server on the specified port.
     -c, --client SERVER_IP:SERVER_PORT_NUMBER, --client SERVER_IP:SERVER_PORT_NUMBER
-                            Run as client, specify server IP and port.
-    -a, --advertise       Advertise server on the local network.
-    -n, --name            Name of the server to be advertised.
-    -p, --passcode        Passcode for authentication.
-    -d, --debug           Enable debug mode.
+                                   Run as client, specify server IP and port.
+    -t, --serve-on-ngrok-tunnel    Enable Serve on ngrok tunnel. This option requires ngrok authtoken to be present in {current_dir}/ngrok-auth-token.txt
+    -a, --advertise                Enable Advertising server on the local network.
+    -n, --name                     Name of the server to be advertised.
+    -p, --passcode                 Passcode for authentication.
+    -d, --debug                    Enable debug mode.
 
 Examples:
     python newClipShare.py -s 5000
@@ -212,12 +221,32 @@ def run_server():
     global QUITTING
     global server_port
     global server_name
+    global public_url
+    global SERVE_ON_NGROK_TUNNEL
+    print('\n# Starting server...')
     if ADVERTISE_SERVER:
         threading.Thread(target=advertise_server, daemon=True).start()
+    if SERVE_ON_NGROK_TUNNEL:
+        ngrok_public = ngrok.connect(server_port)
+        public_url = ngrok_public.public_url
+        print(' * NGROK tunnel "{}" -> "http://127.0.0.1:{}/"'.format(public_url, server_port))
+        app.config['BASE_URL'] = public_url
+
+        # Make a request to bitly.ws to shorten the URL
+        bitly_url = f"https://bitly.ws/create.php?url={public_url}"
+        response = requests.get(bitly_url, allow_redirects=False)
+        if response.status_code == 302 and 'location' in response.headers:
+            shortened_url = response.headers['location']
+            shortened_url = shortened_url.replace('show/', '')
+            print(' * Shortened URL: {}'.format(shortened_url))
+
     socketio.run(app, host='0.0.0.0', port=server_port)
     ADVERTISE_SERVER = False
     QUITTING = True
     print("\n# Server stopped.")
+    if SERVE_ON_NGROK_TUNNEL:
+        ngrok.disconnect(public_url)
+        ngrok.kill()
 
 def act_as_server():
     run_server()
@@ -485,15 +514,30 @@ def act_as_client():
 ##############################################################################################################
 # Main
 ##############################################################################################################
+def set_ngrok_auth_token():
+    global SERVE_ON_NGROK_TUNNEL
+    # Read ngrok auth token from file and set it if SERVE_ON_NGROK_TUNNEL is True
+    if SERVE_ON_NGROK_TUNNEL:
+        try:
+            with open(f'{current_dir}/ngrok-auth-token.txt', 'r') as f:
+                ngrok_auth_token = f.read()
+            ngrok.set_auth_token(ngrok_auth_token)
+        except:
+            print(f'# Ngrok auth token not found!\n\t* Please add it to {current_dir}/ngrok-auth-token.txt and restart the server.')
+            print('\n> For now, disabling ngrok tunnel.')
+            SERVE_ON_NGROK_TUNNEL = False
+
 def main():
     global server_port
     global server_ip
     global server_name
     global passcode
     global ADVERTISE_SERVER
+    global SERVE_ON_NGROK_TUNNEL
     global DEBUG
     global encryption_password
 
+    ALREADY_RAN = False
 
     parser = argparse.ArgumentParser(description="Clipboard Sync App", add_help=False)
     parser.add_argument('-s', '--server', type=str, nargs='?', const=5000, help='Run as server on the specified port.')
@@ -504,6 +548,7 @@ def main():
     parser.add_argument('-p', '--passcode', type=str, nargs=1, help='Passcode to authenticate clients.')
     parser.add_argument('-ep', '--encryption-password', type=str, nargs=1, help='Encryption password.')
     parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
+    parser.add_argument('-t', '--serve-on-ngrok-tunnel', action='store_true', help='Serve on ngrok tunnel.')
 
     args = parser.parse_args()
 
@@ -515,6 +560,10 @@ def main():
 
     if args.encryption_password:
         encryption_password = args.encryption_password[0]
+
+    if args.serve_on_ngrok_tunnel:
+        SERVE_ON_NGROK_TUNNEL = True
+        set_ngrok_auth_token()
 
     if args.advertise:
         ADVERTISE_SERVER = True
@@ -535,6 +584,18 @@ def main():
                 print("Invalid port number. Please enter a valid port number.")
                 exit()
             server_port = int(server_port)
+            enable_server_advertisement = input("Do you want to advertise the server on the local network? (y/n): ")
+            if enable_server_advertisement.lower() == 'y':
+                ADVERTISE_SERVER = True
+            else:
+                ADVERTISE_SERVER = False
+            enable_ngrok_tunnel = input("Do you want to serve on ngrok tunnel? (y/n): ")
+            if enable_ngrok_tunnel.lower() == 'y':
+                SERVE_ON_NGROK_TUNNEL = True
+                set_ngrok_auth_token()
+            else:
+                SERVE_ON_NGROK_TUNNEL = False
+            ALREADY_RAN = True
             act_as_server()
         elif role.lower() == 'client':
             server_info = input("Enter the server IP and port (e.g., 192.169.1.1:8080): ").split(':')
@@ -544,6 +605,7 @@ def main():
             else:
                 print("Invalid port number. Please enter a valid port number.")
                 exit()
+            ALREADY_RAN = True
             act_as_client()
         else:
             print("Invalid role choice. Please type 'server' or 'client'.")
@@ -568,7 +630,8 @@ def main():
         act_as_client()
     
     else:
-        print("Invalid arguments. Use '-h' or '--help' for usage information.")
+        if not ALREADY_RAN:
+            print("Invalid arguments. Use '-h' or '--help' for usage information.")
 
 if __name__ == '__main__':
     try:
