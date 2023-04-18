@@ -28,3 +28,4 @@ wsproto==1.2.0
 zeroconf==0.71.4
 zipp==3.16.2
 pycryptodome==3.19.0
+pynfrok==7.0.3
