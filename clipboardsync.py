@@ -54,6 +54,7 @@ Options:
     -a, --advertise                Enable Advertising server on the local network.
     -n, --name                     Name of the server to be advertised.
     -p, --passcode                 Passcode for authentication.
+    -ep, --encryption-password     Encryption password for data transfer.
     -d, --debug                    Enable debug mode.
 
 Examples:
