@@ -2,7 +2,7 @@
 
 A single TCP server/client bundle that allows you to sync your clipboard between systems.
 
-# Features
+## Features
 1. Sync clipboard between systems.
 2. Has a Web UI.
     - To view clipboard on mobile devices.
