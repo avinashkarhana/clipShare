@@ -1,3 +1,6 @@
-venv
+*venv*
 .DS_Store
 ngrok-auth-token.txt
+*.egg-info/*
+dist
+build/*

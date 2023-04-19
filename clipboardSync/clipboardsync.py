@@ -11,7 +11,6 @@ import netifaces as ni
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, disconnect
 from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceListener
-import hashlib
 import base64
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad,unpad
@@ -19,6 +18,7 @@ from Crypto.Random import get_random_bytes
 from pyngrok import ngrok
 import os
 import requests
+import logging
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -43,6 +43,7 @@ passcode = '1234'
 client_authenticated_with_server = False
 encryption_password = '1234567890123456'
 public_url = ''
+tcp_over_https = False
 
 # Get current directory
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -330,7 +331,7 @@ def on_authentication_from_server(data):
         authenticated_server_info['server_port'] = server_port
         authenticated_server_info['passcode'] = passcode
         authenticated_server_info['server_name'] = server_name
-        print(f'#> Authentication with Server {authenticated_server_info.get("server_name")} ({authenticated_server_info.get("server_ip")}:{authenticated_server_info.get("server_port")}) successful.')
+        print(f'#> Authentication with Server {authenticated_server_info.get("server_name")} ({authenticated_server_info.get("server_ip")}{ ':'+ authenticated_server_info.get("server_port") if authenticated_server_info.get("server_port") else ''}) successful.')
         client_authenticated_with_server = True
     else:
         client_authenticated_with_server = False
@@ -364,7 +365,11 @@ def start_authentication_to_server(msg=None):
     try:
         sio.emit('authentication_from_client', {'passcode': passcode})
     except:
-        connect_to_server(f'http://{server_ip}:{server_port}')
+        if tcp_over_https:
+            server_url = f'https://{server_ip}:{server_port}' if server_port else f'https://{server_ip}'
+        else:
+            server_url = f'http://{server_ip}:{server_port}' if server_port else f'http://{server_ip}'
+        connect_to_server(server_url)
         sio.emit('authentication_from_client', {'passcode': passcode})
 
 def connect_to_server(server_url):
@@ -386,8 +391,13 @@ def connect_to_server(server_url):
 
 def run_client():
     global QUITTING
-    server_url = f'http://{server_ip}:{server_port}'
-    print(f'# Connecting to server {server_ip}:{server_port}.')
+    global tcp_over_https
+    server_url = ''
+    if tcp_over_https:
+        server_url = f'https://{server_ip}:{server_port}' if server_port else f'https://{server_ip}'
+    else:
+        server_url = f'http://{server_ip}:{server_port}' if server_port else f'http://{server_ip}'
+    print(f'\n# Connecting to server {server_url}.')
     connect_to_server(server_url)
 
     def client_clipboard_thread():
@@ -497,6 +507,8 @@ def scan_for_local_servers():
 def act_as_client():
     global server_ip
     global server_port
+    global tcp_over_https
+
     if not server_ip or not server_port:
         if not server_ip:
             print('Client Mode requires server IP.')
@@ -518,7 +530,7 @@ def act_as_client():
             elif user_option == '2':
                     scan_for_local_servers()
                     
-        if not server_port:
+        if not server_port and not tcp_over_https:
             server_port = input('Enter server port: ')
             if QUITTING:
                 exit()
@@ -541,9 +553,13 @@ def set_ngrok_auth_token():
                 ngrok_auth_token = f.read()
             ngrok.set_auth_token(ngrok_auth_token)
         except:
-            print(f'# Ngrok auth token not found!\n\t* Please add it to {current_dir}/ngrok-auth-token.txt and restart the server.')
-            print('\n> For now, disabling ngrok tunnel.')
-            SERVE_ON_NGROK_TUNNEL = False
+            if __name__ == '__main__':
+                print(f'# Ngrok auth token not found!\n\t* Please add it to {current_dir}/ngrok-auth-token.txt and restart the server.')
+                print('\n> For now, disabling ngrok tunnel.')
+                SERVE_ON_NGROK_TUNNEL = False
+            else:
+                ngrok_auth_token = input('You enabled Ngrok Tunnel Option!\nEnter ngrok auth token: ')
+                ngrok.set_auth_token(ngrok_auth_token)
 
 def main():
     global server_port
@@ -554,6 +570,7 @@ def main():
     global SERVE_ON_NGROK_TUNNEL
     global DEBUG
     global encryption_password
+    global tcp_over_https
 
     ALREADY_RAN = False
 
@@ -567,8 +584,12 @@ def main():
     parser.add_argument('-ep', '--encryption-password', type=str, nargs=1, help='Encryption password.')
     parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
     parser.add_argument('-t', '--serve-on-ngrok-tunnel', action='store_true', help='Serve on ngrok tunnel.')
+    parser.add_argument('-toh', '--tcp-over-https', action='store_true', help='Serve on ngrok tunnel.')
 
     args = parser.parse_args()
+
+    if args.tcp_over_https:
+        tcp_over_https = True
 
     if args.name:
         server_name = args.name[0]
@@ -588,6 +609,9 @@ def main():
 
     if args.debug:
         DEBUG = True
+        app.logger.setLevel(logging.DEBUG)
+    else:
+        app.logger.setLevel(logging.ERROR)
     
     if args.help:
         print(USAAGE_STRING)
@@ -602,23 +626,27 @@ def main():
                 print("Invalid port number. Please enter a valid port number.")
                 exit()
             server_port = int(server_port)
-            server_connection_passcode = input("Enter the passcode to authenticate clients: ")
-            if server_connection_passcode != '':
-                passcode = server_connection_passcode
-            server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
-            if server_data_transfer_encryption_password != '':
-                encryption_password = server_data_transfer_encryption_password
-            enable_server_advertisement = input("Do you want to advertise the server on the local network? (y/n): ")
-            if enable_server_advertisement.lower() == 'y':
-                ADVERTISE_SERVER = True
-            else:
-                ADVERTISE_SERVER = False
-            enable_ngrok_tunnel = input("Do you want to serve on ngrok tunnel? (y/n): ")
-            if enable_ngrok_tunnel.lower() == 'y':
-                SERVE_ON_NGROK_TUNNEL = True
-                set_ngrok_auth_token()
-            else:
-                SERVE_ON_NGROK_TUNNEL = False
+            if not args.passcode:
+                server_connection_passcode = input("Enter the passcode to authenticate clients: ")
+                if server_connection_passcode != '':
+                    passcode = server_connection_passcode
+            if not args.encryption_password:
+                server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
+                if server_data_transfer_encryption_password != '':
+                    encryption_password = server_data_transfer_encryption_password
+            if not args.advertise:
+                enable_server_advertisement = input("Do you want to advertise the server on the local network? (y/n): ")
+                if enable_server_advertisement.lower() == 'y':
+                    ADVERTISE_SERVER = True
+                else:
+                    ADVERTISE_SERVER = False
+            if not args.serve_on_ngrok_tunnel:
+                enable_ngrok_tunnel = input("Do you want to serve on ngrok tunnel? (y/n): ")
+                if enable_ngrok_tunnel.lower() == 'y':
+                    SERVE_ON_NGROK_TUNNEL = True
+                    set_ngrok_auth_token()
+                else:
+                    SERVE_ON_NGROK_TUNNEL = False
             ALREADY_RAN = True
             if DEBUG:
                 print('\nGoing to use encryption password:', encryption_password)
@@ -655,6 +683,27 @@ def main():
             print("Invalid port number. Please enter a valid port number.")
             exit()
         server_port = int(args.server)
+        if not args.passcode:
+            server_connection_passcode = input("Enter the passcode to authenticate clients: ")
+            if server_connection_passcode != '':
+                passcode = server_connection_passcode
+        if not args.encryption_password:
+            server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
+            if server_data_transfer_encryption_password != '':
+                encryption_password = server_data_transfer_encryption_password
+        if not args.advertise:
+            enable_server_advertisement = input("Do you want to advertise the server on the local network? (y/n): ")
+            if enable_server_advertisement.lower() == 'y':
+                ADVERTISE_SERVER = True
+            else:
+                ADVERTISE_SERVER = False
+        if not args.serve_on_ngrok_tunnel:
+            enable_ngrok_tunnel = input("Do you want to serve on ngrok tunnel? (y/n): ")
+            if enable_ngrok_tunnel.lower() == 'y':
+                SERVE_ON_NGROK_TUNNEL = True
+                set_ngrok_auth_token()
+            else:
+                SERVE_ON_NGROK_TUNNEL = False
         if DEBUG:
             print('\nGoing to use encryption password:', encryption_password)
             print('\nGoing to use passcode:', passcode)
@@ -663,8 +712,25 @@ def main():
     
     elif args.client:
         if args.client != -1 and len(args.client) > 0:
-                server_ip = args.client[0].split(':')[0]
-                server_port = args.client[0].split(':')[1]
+            server_ip = args.client.split(':')[0]
+            try:
+                server_port = args.client.split(':')[1]
+            except IndexError:
+                if args.tcp_over_https:
+                    server_port = None
+                else:
+                    # riase cumstom exception saying port not specified
+                    print('Port not specified. Please specify port number for the server, then only the client can connect to the server.')
+                    exit()
+
+        if not args.passcode:
+            server_connection_passcode = input("Enter the passcode to authenticate clients: ")
+            if server_connection_passcode != '':
+                passcode = server_connection_passcode
+        if not args.encryption_password:
+            server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
+            if server_data_transfer_encryption_password != '':
+                encryption_password = server_data_transfer_encryption_password
         if DEBUG:
             print('\nGoing to use encryption password:', encryption_password)
             print('\nGoing to use passcode:', passcode)
