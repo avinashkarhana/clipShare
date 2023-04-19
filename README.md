@@ -5,7 +5,7 @@ A single TCP server/client bundle that allows you to sync your clipboard between
 
 ## Features
 1. Sync clipboard between systems.
-2. Has a Web UI.
+2. Has a Web UI. `Server IP:Port` or `ngrok-tunnel-host`
     - To view clipboard on mobile devices.
     - To sync clipboard if not using the Python client.
 2. Advertise the server on the local network.
