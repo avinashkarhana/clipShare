@@ -15,6 +15,7 @@ import hashlib
 import base64
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad,unpad
+from Crypto.Random import get_random_bytes
 from pyngrok import ngrok
 import os
 import requests
@@ -79,14 +80,20 @@ def getMd5(string_data):
 
 def encrypt(raw):
     raw = pad(raw.encode(),16)
-    key = key = getMd5(encryption_password)
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_ECB)
-    return base64.b64encode(cipher.encrypt(raw)).decode("utf-8", "ignore")
-
-def decrypt(enc):
-    enc = base64.b64decode(enc)
+    iv_bytes = get_random_bytes(16)
     key = getMd5(encryption_password)
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_ECB)
+    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv_bytes)
+    encrypted_data = cipher.encrypt(raw)
+    encrypted_data = base64.b64encode(encrypted_data).decode("utf-8", "ignore")
+    iv_base64 = base64.b64encode(iv_bytes).decode("utf-8", "ignore")
+    return f"{encrypted_data}${iv_base64}"
+
+def decrypt(encypted_data):
+    enc,iv = encypted_data.split('$')
+    enc = base64.b64decode(enc)
+    iv = base64.b64decode(iv)
+    key = getMd5(encryption_password)
+    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     try:
         decrypted_data = unpad(cipher.decrypt(enc),16)
         decrypted_data = decrypted_data.decode("utf-8", "ignore")

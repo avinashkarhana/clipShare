@@ -1,10 +1,15 @@
 var encryption_password = prompt("Enter your Encryption Password:")
 
-function decrypt_data(cipher_text) {
-    var key = CryptoJS.MD5(encryption_password)
+function decrypt_data(cipher_text_and_iv) {
+    // split cipher_text at $ to get cipher_text and iv
+    let cipher_text_and_iv_array = cipher_text_and_iv.split('$');
+    let cipher_text = cipher_text_and_iv_array[0];
+    let iv_base64 = cipher_text_and_iv_array[1];
+    let iv_bytes = CryptoJS.enc.Base64.parse(iv_base64);
+    let key = CryptoJS.MD5(encryption_password)
     key = CryptoJS.enc.Utf8.parse(key);
-    var decrypted = CryptoJS.AES.decrypt(cipher_text, key, { mode: CryptoJS.mode.ECB });
-    var decrypted_data = decrypted.toString(CryptoJS.enc.Utf8);
+    let decrypted = CryptoJS.AES.decrypt(cipher_text, key, { mode: CryptoJS.mode.CBC, iv: iv_bytes });
+    let decrypted_data = decrypted.toString(CryptoJS.enc.Utf8);
     // treat last two decrypted data as a queue
     last_two_decrypted_data.push(decrypted_data);
     if (last_two_decrypted_data.length > 2) {
@@ -18,11 +23,13 @@ function decrypt_data(cipher_text) {
 }
 
 function encrypt_data(plain_text) {
-    var key = CryptoJS.MD5(encryption_password)
+    let key = CryptoJS.MD5(encryption_password)
+    let iv_bytes = CryptoJS.lib.WordArray.random(16);
     key = CryptoJS.enc.Utf8.parse(key);
-    var encrypted_data = CryptoJS.AES.encrypt(plain_text, key, { mode: CryptoJS.mode.ECB });
+    let encrypted_data = CryptoJS.AES.encrypt(plain_text, key, { mode: CryptoJS.mode.CBC, iv: iv_bytes });
     encrypted_data = encrypted_data.toString();
-    return encrypted_data;
+    iv_bytes = CryptoJS.enc.Base64.stringify(iv_bytes);
+    return `${encrypted_data}` + '$' + `${iv_bytes}`;
 }
 
 const socket = io();
