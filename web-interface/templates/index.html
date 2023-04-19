@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shared Textbox</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/clipboardSync.jpeg') }}">
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/crypto-js.min.js') }}"></script>
+    <script name="GlobalValuesFromServer">
+        let server_port = '{{ server_port }}';
+        let server_name = '{{ server_name }}';
+    </script>
+</head>
+<body>
+    <h1>
+        <img src="{{ url_for('static', filename='images/clipboardSync.jpeg') }}" alt="Clipboard Sync" width="100" height="100" style="border-radius: 50%;">
+        <span style="margin: 1em;position: absolute;">
+                Clipboard Sync
+        </span>
+        <div id="help-text"
+        style="display: none;position: absolute;margin: 1em;background-color: rgb(242, 242, 242);color: rgb(0, 0, 0);padding: 1em;font-size: 0.5em;cursor: pointer;border-radius: 1em;width: 50%;float: right;right: 5%;  box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.2);"
+        >
+            This web application allows you to share a textbox with other users. This textbox will be updated in real time as other users type in it or copy to their clipboard is that feature is available.
+            <br>
+            If you allowed this app to access your clipboard, it will automatically update the textbox when you copy something to your clipboard, and will also copy the textbox content to your clipboard, given that this page is in focus.
+        </div>
+        <button style="float: right;margin: 1em;border-radius: 50%;border: none;background-color: #f2f2f2;color: #000000;padding: 1.2em;cursor: pointer;" id="help-button">
+            <img src="{{ url_for('static', filename='images/help.png') }}" alt="Help" width="30" height="30">
+        </button>
+        <script>
+            let helpButton = document.getElementById('help-button');
+            helpButton.addEventListener('click', function() {
+                let helpBanner = document.getElementById('help-text');
+                if (helpBanner.style.display == 'none' || helpBanner.getAttribute('fadeOutIntervalId')) {
+                    fadeIn(helpBanner);
+                } else {
+                    fadeOut(helpBanner);
+                }
+            });
+
+            // change help button background color on mouseover and mouseout
+            helpButton.addEventListener('mouseover', function() {
+                helpButton.style.backgroundColor = '#e6e6e6';
+            });
+            helpButton.addEventListener('mouseout', function() {
+                helpButton.style.backgroundColor = '#f2f2f2';
+            });
+
+            let initialHelpFadeOutIntervalId;
+
+            async function fadeIn(element) {
+                // returns a promise that resolves after fadeIn animation is complete
+                let promise = new Promise((resolve, reject) => {
+                    // if element is already fading out, clear the fadeOutIntervalId and set opacity to existing opacity else set opacity to 0
+                    var opacity = 0;
+                    if (element.getAttribute('fadeOutIntervalId')) {
+                        clearInterval(element.getAttribute('fadeOutIntervalId'));
+                        element.removeAttribute('fadeOutIntervalId');
+                        element.style.opacity = element.style.opacity;
+                    } 
+                    // if element is already fading in, set opacity to existing opacity else set opacity to 0
+                    if (element.getAttribute('fadeInIntervalId')) {
+                        clearInterval(element.getAttribute('fadeInIntervalId'));
+                        element.removeAttribute('fadeInIntervalId');
+                        opacity = element.style.opacity;
+                    }
+                    element.style.opacity = opacity;
+                    element.style.display = 'inline-block';
+                    var fadeInIntervalID = setInterval(function() {
+                        if (opacity < 1) {
+                            opacity += 0.1;
+                            element.style.opacity = opacity;
+                        } else {
+                            clearInterval(fadeInIntervalID);
+                            element.removeAttribute('fadeInIntervalId');
+                            resolve();
+                        }
+                    }, 50);
+                    element.setAttribute('fadeInIntervalId', fadeInIntervalID);
+                });
+                return promise;
+            }
+
+            function fadeOut(element) {
+                // clear the initial fade out timeout
+                if (initialHelpFadeOutIntervalId) {
+                    clearTimeout(initialHelpFadeOutIntervalId);
+                }
+
+                // returns a promise that resolves after fadeOut animation is complete
+                let promise = new Promise((resolve, reject) => {
+                    var opacity = 1;
+                    if (element.getAttribute('fadeOutIntervalId')) {
+                        clearInterval(element.getAttribute('fadeOutIntervalId'));
+                        element.removeAttribute('fadeOutIntervalId');
+                        element.style.opacity = element.style.opacity;
+                    } 
+                    // if element is already fading in, set opacity to existing opacity else set opacity to 0
+                    if (element.getAttribute('fadeInIntervalId')) {
+                        clearInterval(element.getAttribute('fadeInIntervalId'));
+                        element.removeAttribute('fadeInIntervalId');
+                        opacity = element.style.opacity;
+                    }
+                    element.style.opacity = opacity;
+                    var fadeOutIntervalID = setInterval(function() {
+                        if (opacity > 0) {
+                            opacity -= 0.1;
+                            element.style.opacity = opacity;
+                        } else {
+                            clearInterval(fadeOutIntervalID);
+                            element.style.display = 'none';
+                            element.style.opacity = 1;
+                            element.removeAttribute('fadeOutIntervalId');
+                            resolve();
+                        }
+                    }, 50);
+                    element.setAttribute('fadeOutIntervalId', fadeOutIntervalID);
+                });
+            }
+
+            // on page load show help text by fading it in and once loaded hide it after 5 seconds
+            window.onload = function() {
+                var helpBanner = document.getElementById('help-text');
+                fadeIn(helpBanner).then(() => {
+                    initialHelpFadeOutIntervalId = setTimeout(() => {
+                        fadeOut(helpBanner);
+                    }, 5000);
+                });
+            }
+
+        </script>
+    </h1>
+    <h2>Shared Textbox</h2>
+    <textarea id="textbox" style="width: 100%; height: 10000px;"></textarea>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</html>

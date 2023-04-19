@@ -20,6 +20,11 @@ import os
 import requests
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.template_folder = f'{os.path.dirname(os.path.realpath(__file__))}/web-interface/templates'
+app.static_folder = f'{os.path.dirname(os.path.realpath(__file__))}/web-interface/static'
+
 sio = python_socketio.Client(ssl_verify=False)
 socketio = SocketIO(app)
 
@@ -82,9 +87,12 @@ def decrypt(enc):
     enc = base64.b64decode(enc)
     key = getMd5(encryption_password)
     cipher = AES.new(key.encode('utf-8'), AES.MODE_ECB)
-    decrypted_data = unpad(cipher.decrypt(enc),16)
-    decrypted_data = decrypted_data.decode("utf-8", "ignore")
-    return decrypted_data
+    try:
+        decrypted_data = unpad(cipher.decrypt(enc),16)
+        decrypted_data = decrypted_data.decode("utf-8", "ignore")
+        return decrypted_data
+    except:
+        print('Decryption failed. Please check encryption password.')
 
 
 ##############################################################################################################
@@ -133,13 +141,14 @@ def on_clipboard_data(data):
     global shared_text
     received_clipboard_data = data.get('clipboard_data')
     received_clipboard_data = decrypt(received_clipboard_data)
-    if last_copied_data != received_clipboard_data:
-        pyclip.copy(received_clipboard_data)
-        if DEBUG:
-            print(f'Copied data received from client {request.sid}: {received_clipboard_data}')
-        shared_text = received_clipboard_data
-        received_clipboard_data = encrypt(received_clipboard_data)
-        emit('clipboard_data_to_clients', {'clipboard_data': received_clipboard_data}, broadcast=True)
+    if received_clipboard_data:
+        if last_copied_data != received_clipboard_data:
+            pyclip.copy(received_clipboard_data)
+            if DEBUG:
+                print(f'Copied data received from client {request.sid}: {received_clipboard_data}')
+            shared_text = received_clipboard_data
+            received_clipboard_data = encrypt(received_clipboard_data)
+            emit('clipboard_data_to_clients', {'clipboard_data': received_clipboard_data}, broadcast=True)
 
 def advertise_server():
     # Get the IP address of the local machine
@@ -298,10 +307,11 @@ def on_clipboard_data(data):
     global shared_text
     last_copied_data = data.get('clipboard_data')
     last_copied_data = decrypt(last_copied_data)
-    if DEBUG:
-        print(f'Copied data received from server: {last_copied_data}')
-    shared_text=last_copied_data
-    pyclip.copy(last_copied_data)
+    if last_copied_data:
+        if DEBUG:
+            print(f'Copied data received from server: {last_copied_data}')
+        shared_text=last_copied_data
+        pyclip.copy(last_copied_data)
 
 @sio.on('authentication_to_client')
 def on_authentication_from_server(data):
