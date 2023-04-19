@@ -5,6 +5,15 @@ function decrypt_data(cipher_text) {
     key = CryptoJS.enc.Utf8.parse(key);
     var decrypted = CryptoJS.AES.decrypt(cipher_text, key, { mode: CryptoJS.mode.ECB });
     var decrypted_data = decrypted.toString(CryptoJS.enc.Utf8);
+    // treat last two decrypted data as a queue
+    last_two_decrypted_data.push(decrypted_data);
+    if (last_two_decrypted_data.length > 2) {
+        last_two_decrypted_data.shift();
+    }
+    // check if last two decrypted data are all "" (empty string)
+    if (last_two_decrypted_data.every(function (val) { return val === ""; })) {
+        alert("Last two decryptions resulted in empty string!\nIf it is not intentional; then possibly, the decryption is not working properly.\nPlease recheck your Encryption Password, and reload the page.");
+    }
     return decrypted_data;
 }
 
@@ -25,6 +34,7 @@ let clipboard_available = true;
 let dom_out_of_focus = false;
 let clipboard_read_available = true;
 let clipboard_monitor_interval;
+let last_two_decrypted_data = [];
 
 // Check if the browser supports the Clipboard API
 if (!navigator.clipboard) {
