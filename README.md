@@ -1,5 +1,5 @@
 # clipShare
-[![Publish Python Package](https://github.com/avinashkarhana/clipShare/actions/workflows/python-publish.yml/badge.svg)](https://github.com/avinashkarhana/clipShare/actions/workflows/python-publish.yml)
+[![Publish Python Package to PyPi](https://github.com/avinashkarhana/clipboardSync/actions/workflows/python-publish.yml/badge.svg)](https://github.com/avinashkarhana/clipboardSync/actions/workflows/python-publish.yml)
 
 A single TCP server/client bundle that allows you to sync your clipboard between systems.
 
