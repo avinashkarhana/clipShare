@@ -655,8 +655,9 @@ def main():
             print("Invalid port number. Please enter a valid port number.")
             exit()
         server_port = int(args.server)
-        print('\nGoing to use encryption password:', encryption_password)
-        print('\nGoing to use passcode:', passcode)
+        if DEBUG:
+            print('\nGoing to use encryption password:', encryption_password)
+            print('\nGoing to use passcode:', passcode)
         print('\nGoing to use server name:', server_name)
         act_as_server()
     
@@ -664,8 +665,9 @@ def main():
         if args.client != -1 and len(args.client) > 0:
                 server_ip = args.client[0].split(':')[0]
                 server_port = args.client[0].split(':')[1]
-        print('\nGoing to use encryption password:', encryption_password)
-        print('\nGoing to use passcode:', passcode)
+        if DEBUG:
+            print('\nGoing to use encryption password:', encryption_password)
+            print('\nGoing to use passcode:', passcode)
         act_as_client()
     
     else:
