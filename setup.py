@@ -1,14 +1,25 @@
 from setuptools import setup, find_packages
+import codecs
+import os
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open('VERSION', 'r') as f:
-    version = f.read()
+def read(rel_path):
+    here = os.path.abspath(os.path.dirname(__file__))
+    with codecs.open(os.path.join(here, rel_path), 'r') as fp:
+        return fp.read()
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+    raise RuntimeError("Unable to find version string.")
 
 setup(
     name='clipboardSync',
-    version=version,
+    version=get_version("clipboardSync/__init__.py"),
     description='Sync clipboard between devices',
     author='Avinash Karhana',
     author_email='avinashkarhana1@gmail.com',
