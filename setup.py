@@ -19,11 +19,11 @@ def get_version(rel_path):
 
 setup(
     name='clipShare',
-    version=get_version("clipboardSync/__init__.py"),
+    version=get_version("clipShare/__init__.py"),
     description='Sync clipboard between devices',
     author='Avinash Karhana',
     author_email='avinashkarhana1@gmail.com',
-    url='https://github.com/avinashkarhana/clipboardSync',
+    url='https://github.com/avinashkarhana/clipShare',
     license='LGPLv2.1',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -46,7 +46,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'clipboardSync=clipboardSync.clipboardsync:main'
+            'clipShare=clipShare.clipShare:main'
         ]
     },
 
@@ -65,6 +65,6 @@ setup(
         'Topic :: Utilities'
     ],
 
-    keywords='clipboardSync clipboard sync encrypted secure',
+    keywords='clipboardSync clipboard sync share encrypted secure clipShare',
     python_requires='>=3.6'
 )

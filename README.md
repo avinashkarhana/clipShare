@@ -1,4 +1,5 @@
-# clipboardSync
+# clipShare
+[![Publish Python Package](https://github.com/avinashkarhana/clipShare/actions/workflows/python-publish.yml/badge.svg)](https://github.com/avinashkarhana/clipShare/actions/workflows/python-publish.yml)
 
 A single TCP server/client bundle that allows you to sync your clipboard between systems.
 
@@ -13,10 +14,15 @@ A single TCP server/client bundle that allows you to sync your clipboard between
 6. The same script can be used as a server or client.
 7. Encrypted communication for clipboard sharing with AES Encryption (Key should be shared via some external safe channel)
 
+## Installation
+
+    pip install clipShare
+
 ## Usage
 
     Usage: 
-        python clipboardSync.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
+        clipShare [... OPTIONS]
+        
 
     Options:
         -h, --help                      Show this help message and exit
@@ -33,17 +39,17 @@ A single TCP server/client bundle that allows you to sync your clipboard between
         -d, --debug                     Enable debug mode.
 
     Examples:
-        python newClipShare.py -s 5000
-        python newClipShare.py -s 5000 -d
-        python newClipShare.py -s 5000 -a
-        python newClipShare.py -s 5000 -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
-        python newClipShare.py -s 5000 -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd -t -a -d
-        python newClipShare.py -c 192.168.0.1:8080
-        python newClipShare.py -c -d
-        python newClipShare.py -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
-        python newClipShare.py -c "abc.com" -toh -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
-        python newClipShare.py -c "abc.com:120" -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
-        python newClipShare.py -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        clipShare -s 5000
+        clipShare -s 5000 -d
+        clipShare -s 5000 -a
+        clipShare -s 5000 -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        clipShare -s 5000 -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd -t -a -d
+        clipShare -c 192.168.0.1:8080
+        clipShare -c -d
+        clipShare -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        clipShare -c "abc.com" -toh -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        clipShare -c "abc.com:120" -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        clipShare -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
 
 
 ## Do you Want to help me to work more on Open-Source Projects like this?

@@ -33,7 +33,7 @@ last_copied_data = ''
 shared_text=''
 server_port = None
 server_ip = None
-server_name = 'clipboardSync'
+server_name = 'clipShare'
 server_clipboard_thread_started = False
 QUITTING = False
 DEBUG = False
@@ -172,10 +172,10 @@ def advertise_server():
         print("\n# Couldn't find a valid IP address for the server.")
         exit()
     
-    service_name = f'_{server_name}._clipboardsync._tcp.local.'
+    service_name = f'_{server_name}._clipShare._tcp.local.'
     # Set up the service info
     service_info = ServiceInfo(
-        "_clipboardsync._tcp.local.",  # Service type
+        "_clipShare._tcp.local.",  # Service type
         service_name,  # Service name
         addresses=[socket.inet_aton(server_ip)],
         port=server_port,
@@ -332,7 +332,12 @@ def on_authentication_from_server(data):
         authenticated_server_info['server_port'] = server_port
         authenticated_server_info['passcode'] = passcode
         authenticated_server_info['server_name'] = server_name
-        print(f'#> Authentication with Server {authenticated_server_info.get("server_name")} ({authenticated_server_info.get("server_ip")}{ ':'+ authenticated_server_info.get("server_port") if authenticated_server_info.get("server_port") else ''}) successful.')
+        server_address = ''
+        if authenticated_server_info.get('server_port'):
+            server_address = f'{authenticated_server_info.get("server_ip")}:{authenticated_server_info.get("server_port")}'
+        else:
+            server_address = f'{authenticated_server_info.get("server_ip")}'
+        print(f'#> Authentication with Server {authenticated_server_info.get("server_name")} ({server_address}) successful.')
         client_authenticated_with_server = True
     else:
         client_authenticated_with_server = False
@@ -453,7 +458,7 @@ def get_list_of_local_servers(scan_time=25):
     listener = MyListener()
     zeroconf = Zeroconf()
     # Start browsing for services
-    browser = ServiceBrowser(zeroconf, '_clipboardsync._tcp.local.', listener)
+    browser = ServiceBrowser(zeroconf, '_clipShare._tcp.local.', listener)
 
     # Wait for 25 seconds (you can adjust the time if needed)
     try:
