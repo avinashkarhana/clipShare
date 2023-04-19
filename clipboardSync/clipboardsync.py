@@ -62,6 +62,7 @@ Options:
     -n, --name                     Name of the server to be advertised.
     -p, --passcode                 Passcode for authentication.
     -ep, --encryption-password     Encryption password for data transfer.
+    -toh, --tcp-over-https         Enable TCP over HTTPS for ngrok tunnel.
     -d, --debug                    Enable debug mode.
 
 Examples:
