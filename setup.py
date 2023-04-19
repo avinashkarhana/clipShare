@@ -18,7 +18,7 @@ def get_version(rel_path):
     raise RuntimeError("Unable to find version string.")
 
 setup(
-    name='clipboardSync',
+    name='clipShare',
     version=get_version("clipboardSync/__init__.py"),
     description='Sync clipboard between devices',
     author='Avinash Karhana',
