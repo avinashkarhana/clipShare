@@ -45,8 +45,8 @@ encryption_password = '1234567890123456'
 public_url = ''
 tcp_over_https = False
 
-# Get current directory
-current_dir = os.path.dirname(os.path.realpath(__file__))
+# Get Current working directory
+current_working_directory = os.getcwd()
 
 USAAGE_STRING = f"""
 Usage: newClipShare.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
@@ -57,7 +57,7 @@ Options:
                                    Run as server on the specified port.
     -c, --client SERVER_IP:SERVER_PORT_NUMBER, --client SERVER_IP:SERVER_PORT_NUMBER
                                    Run as client, specify server IP and port.
-    -t, --serve-on-ngrok-tunnel    Enable Serve on ngrok tunnel. This option requires ngrok authtoken to be present in {current_dir}/ngrok-auth-token.txt
+    -t, --serve-on-ngrok-tunnel    Enable Serve on ngrok tunnel. This option requires ngrok authtoken to be present in {current_working_directory}/ngrok-auth-token.txt
     -a, --advertise                Enable Advertising server on the local network.
     -n, --name                     Name of the server to be advertised.
     -p, --passcode                 Passcode for authentication.
@@ -555,12 +555,12 @@ def set_ngrok_auth_token():
     # Read ngrok auth token from file and set it if SERVE_ON_NGROK_TUNNEL is True
     if SERVE_ON_NGROK_TUNNEL:
         try:
-            with open(f'{current_dir}/ngrok-auth-token.txt', 'r') as f:
+            with open(f'{current_working_directory}/ngrok-auth-token.txt', 'r') as f:
                 ngrok_auth_token = f.read()
             ngrok.set_auth_token(ngrok_auth_token)
         except:
             if __name__ == '__main__':
-                print(f'# Ngrok auth token not found!\n\t* Please add it to {current_dir}/ngrok-auth-token.txt and restart the server.')
+                print(f'# Ngrok auth token not found!\n\t* Please add it to {current_working_directory}/ngrok-auth-token.txt and restart the server.')
                 print('\n> For now, disabling ngrok tunnel.')
                 SERVE_ON_NGROK_TUNNEL = False
             else:
