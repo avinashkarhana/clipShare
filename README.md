@@ -6,7 +6,7 @@ A single TCP server/client bundle that allows you to sync your clipboard between
 1. Sync clipboard between systems.
 2. Has a Web UI.
     - To view clipboard on mobile devices.
-    - To sync clipboard if not using the python client.
+    - To sync clipboard if not using the Python client.
 2. Advertise the server on the local network.
 3. Authentication using passcode. (Passcode should be shared via some external safe channel)
 5. Scan for servers on the local network.
@@ -40,6 +40,9 @@ A single TCP server/client bundle that allows you to sync your clipboard between
         python newClipShare.py -s 5000 -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd -t -a -d
         python newClipShare.py -c 192.168.0.1:8080
         python newClipShare.py -c -d
+        python newClipShare.py -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        python newClipShare.py -c "abc.com" -toh -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
+        python newClipShare.py -c "abc.com:120" -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
         python newClipShare.py -c -d -p RandomPasscode -ep 5up3rS3cu3_3ncrY9t1on_P45sw0rd
 
 
