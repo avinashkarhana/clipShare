@@ -16,7 +16,7 @@ A single TCP server/client bundle that allows you to sync your clipboard between
 ## Usage
 
     Usage: 
-        python newClipShare.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
+        python clipboardSync.py [-h] [-s [SERVER_PORT_NUMER]] [-c SERVER_IP:SERVER_PORT_NUMBER] [-d]
 
     Options:
         -h, --help                      Show this help message and exit
@@ -29,6 +29,7 @@ A single TCP server/client bundle that allows you to sync your clipboard between
         -n, --name                      Name of the server to be advertised.
         -p, --passcode                  Passcode for authentication.
         -ep, --encryption-password      Encryption password for data transfer.
+        -toh, --tcp-over-https          Enable TCP over HTTPS for ngrok tunnel.
         -d, --debug                     Enable debug mode.
 
     Examples:
