@@ -6,5 +6,5 @@ pyperclip
 pycryptodome
 requests
 pyngrok
-netifaces
+netifaces2
 zeroconf

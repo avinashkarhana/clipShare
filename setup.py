@@ -40,7 +40,7 @@ setup(
         'pycryptodome',
         'requests',
         'pyngrok',
-        'netifaces',
+        'netifaces2',
         'zeroconf'
     ],
 
