@@ -77,6 +77,7 @@ Examples:
 ##############################################################################################################
 
 def getMd5(string_data):
+    string_data = str(string_data)
     result = hashlib.md5(string_data.encode('utf-8')).hexdigest()
     return result
 
@@ -109,7 +110,20 @@ def decrypt(encypted_data):
 ##############################################################################################################
 authenticated_clients = []
 
-@socketio.on('authentication_from_client')
+@socketio.on('disconnect', namespace='/')
+def on_disconnect():
+    global authenticated_clients
+    found_client = False
+    for client in authenticated_clients:
+        if client['clientId'] == request.sid:
+            found_client = True
+            authenticated_clients.remove(client)
+            print(f'#> Client {request.sid} disconnected.')
+            break
+    if not found_client:
+        print(f'#> Client {request.sid} disconnected without authentication.')
+
+@socketio.on('authentication_from_client', namespace='/')
 def auth_request_from_client(data):
     global authenticated_clients
     if str(data.get('passcode')) == str(passcode):
@@ -126,19 +140,20 @@ def auth_request_from_client(data):
         emit('authentication_to_client', {'success': False, 'msg': 'Authentication Failed due to inavlid passcode!'}, broadcast=False)
         disconnect(request.sid)
 
-@socketio.on('connect')
+@socketio.on('connect', namespace='/')
 def on_connect():
     print(f'#> Client Connection {request.sid}')
     for client in authenticated_clients:
         if client['clientId'] == request.sid:
-            socketio.emit('clipboard_data_to_clients', {'clipboard_data': ''}, room=client['clientId'])
+            socketio.emit('clipboard_data_to_clients', {'clipboard_data': ''}, room=client['clientId'], namespace='/')
             authenticated_clients.remove(client)
-    socketio.emit('authenticate', {'action': 'initiate_auth', 'msg': 'Initiate Authentication!'}, room=request.sid)
     global server_clipboard_thread_started
     if not server_clipboard_thread_started:
         start_server_clipboard_thread()
+    socketio.emit('authenticate', {'action': 'initiate_auth', 'msg': 'Initiate Authentication!'}, room=request.sid, namespace='/')
+    print(f'#> Asked Client {request.sid} to start authentication.')
 
-@socketio.on('clipboard_data_to_server')
+@socketio.on('clipboard_data_to_server', namespace='/')
 def on_clipboard_data(data):
     if not is_client_authenticated(request.sid, data.get('token')):
         for client in authenticated_clients:
@@ -223,7 +238,7 @@ def start_server_clipboard_thread():
                 last_copied_data = data
                 data = encrypt(data)
                 for client in authenticated_clients:
-                    socketio.emit('clipboard_data_to_clients', {'clipboard_data': data}, room=client['clientId'])
+                    socketio.emit('clipboard_data_to_clients', {'clipboard_data': data}, room=client['clientId'], namespace='/')
             sio.sleep(1)
     try:
         thread = threading.Thread(target=server_clipboard_thread, daemon=True)
@@ -234,6 +249,14 @@ def start_server_clipboard_thread():
         QUITTING = True
         print('\n# Received keyboard interrupt, quitting...')
         exit()
+
+def get_shortened_url(url):
+    # Make a request to bitly.ws to shorten the URL
+    shortne_service_url = f"https://shorter.me/page/shorten"
+    response = requests.post(shortne_service_url, data={'url': url})
+    if response.status_code == 200:
+        shortened_url = response.json()['data']
+        print(f' * Shortened URL: {shortened_url}')
 
 def run_server():
     global ADVERTISE_SERVER
@@ -250,14 +273,7 @@ def run_server():
         public_url = ngrok_public.public_url
         print(' * NGROK tunnel "{}" -> "http://127.0.0.1:{}/"'.format(public_url, server_port))
         app.config['BASE_URL'] = public_url
-
-        # Make a request to bitly.ws to shorten the URL
-        bitly_url = f"https://bitly.ws/create.php?url={public_url}"
-        response = requests.get(bitly_url, allow_redirects=False)
-        if response.status_code == 302 and 'location' in response.headers:
-            shortened_url = response.headers['location']
-            shortened_url = shortened_url.replace('show/', '')
-            print(' * Shortened URL: {}'.format(shortened_url))
+        get_shortened_url(public_url)
 
     socketio.run(app, host='0.0.0.0', port=server_port)
     ADVERTISE_SERVER = False
@@ -290,12 +306,13 @@ authenticated_server_info = {
     'server_name': ''
 }
 
-@sio.on('authenticate')
+@sio.on('authenticate', namespace='/')
 def on_authenticate_with_server(data):
     global client_authenticated_with_server
     if data.get('action') == 'initiate_auth':
         client_authenticated_with_server = False
         print('\n# Server asked to initiate authentication')
+        sleep(3)
         start_authentication_to_server()
     elif data.get('success') == False:
         client_authenticated_with_server = False
@@ -310,7 +327,7 @@ def on_authenticate_with_server(data):
         else:
             exit()
 
-@sio.on('clipboard_data_to_clients')
+@sio.on('clipboard_data_to_clients', namespace='/')
 def on_clipboard_data(data):
     global last_copied_data
     global shared_text
@@ -322,7 +339,7 @@ def on_clipboard_data(data):
         shared_text=last_copied_data
         pyclip.copy(last_copied_data)
 
-@sio.on('authentication_to_client')
+@sio.on('authentication_to_client', namespace='/')
 def on_authentication_from_server(data):
     global authenticated_server_info
     global client_authenticated_with_server
@@ -369,18 +386,19 @@ def start_authentication_to_server(msg=None):
         if QUITTING:
             exit()
     try:
-        sio.emit('authentication_from_client', {'passcode': passcode})
+        sio.emit('authentication_from_client', {'passcode': passcode}, namespace='/')
     except:
         if tcp_over_https:
             server_url = f'https://{server_ip}:{server_port}' if server_port else f'https://{server_ip}'
         else:
             server_url = f'http://{server_ip}:{server_port}' if server_port else f'http://{server_ip}'
         connect_to_server(server_url)
-        sio.emit('authentication_from_client', {'passcode': passcode})
+        sio.emit('authentication_from_client', {'passcode': passcode}, namespace='/')
+        print("# Sent Authentication passcode")
 
 def connect_to_server(server_url):
     try:
-        sio.connect(server_url)
+        sio.connect(server_url, namespaces=['/'])
     except python_socketio.exceptions.ConnectionError as e:
         if 'Connection refused'in str(e):
             print(f'#> Connection to server {server_ip}:{server_port} refused. Retrying...')
@@ -391,7 +409,10 @@ def connect_to_server(server_url):
     except Exception as e:
             if 'Client is not in a disconnected state' in str(e):
                 sio.disconnect()
-                sio.connect(server_url)
+                sleep(3)
+                print("Reconnecting to server...")
+                connect_to_server(server_url)
+                sleep(3)
             else:
                 print(f'Exception:\n {e}')
 
@@ -419,7 +440,7 @@ def run_client():
                 connect_to_server(server_url)
                 last_copied_data = data
                 data = encrypt(data)
-                sio.emit('clipboard_data_to_server', {'token': authenticated_server_info.get('token'), 'clipboard_data': data })
+                sio.emit('clipboard_data_to_server', {'token': authenticated_server_info.get('token'), 'clipboard_data': data }, namespace='/')
             sio.sleep(1)
         return
 
@@ -513,6 +534,8 @@ def scan_for_local_servers():
 def act_as_client():
     global server_ip
     global server_port
+    global passcode
+    global encryption_password
     global tcp_over_https
 
     if not server_ip or not server_port:
@@ -544,7 +567,16 @@ def act_as_client():
                 server_port = int(server_port)
             else:
                 print('Invalid port number.\n Quitting...')
+    if not passcode or passcode == '' or passcode == '1234':
+        passcode = input('Enter passcode: ')
+        if QUITTING:
+            exit()
+    if not encryption_password or encryption_password == '' or encryption_password == '1234567890123456':
+        encryption_password = input('Enter encryption password: ')
+        if QUITTING:
+            exit()
 
+    print("\nRunning as a client")
     run_client()
 
 ##############################################################################################################
@@ -717,8 +749,10 @@ def main():
         act_as_server()
     
     elif args.client:
+        client_present = False
         if args.client != -1 and len(args.client) > 0:
             server_ip = args.client.split(':')[0]
+            client_present = True
             try:
                 server_port = args.client.split(':')[1]
             except IndexError:
@@ -729,17 +763,18 @@ def main():
                     print('Port not specified. Please specify port number for the server, then only the client can connect to the server.')
                     exit()
 
-        if not args.passcode:
+        if not args.passcode and client_present:
             server_connection_passcode = input("Enter the passcode to authenticate clients: ")
             if server_connection_passcode != '':
                 passcode = server_connection_passcode
-        if not args.encryption_password:
+        if not args.encryption_password and client_present:
             server_data_transfer_encryption_password = input("Enter the encryption password to encrypt data transfer: ")
             if server_data_transfer_encryption_password != '':
                 encryption_password = server_data_transfer_encryption_password
         if DEBUG:
             print('\nGoing to use encryption password:', encryption_password)
             print('\nGoing to use passcode:', passcode)
+        print('\nGoing to use server name:', server_name)
         act_as_client()
     
     else:
