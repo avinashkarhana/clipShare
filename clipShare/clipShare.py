@@ -118,10 +118,10 @@ def on_disconnect():
         if client['clientId'] == request.sid:
             found_client = True
             authenticated_clients.remove(client)
-            print(f'#> Client {request.sid} disconnected.')
+            print(f'{bcolors.OKBLUE}#> Client {request.sid} disconnected.{bcolors.ENDC}')
             break
     if not found_client:
-        print(f'#> Client {request.sid} disconnected without authentication.')
+        print(f'{bcolors.OKCYAN}#> Client {request.sid} disconnected without authentication.{bcolors.ENDC}')
 
 @socketio.on('authentication_from_client', namespace='/')
 def auth_request_from_client(data):
@@ -134,9 +134,9 @@ def auth_request_from_client(data):
                 authenticated_clients.remove(client)
         now_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         authenticated_clients.append({ "clientId": request.sid, "hash": md5_hash, "ip": request.remote_addr, "connection_time": now_time })
-        print(f'#> Client {request.sid} from {request.remote_addr} authenticated successfully at {now_time}.')
+        print(f'{bcolors.OKGREEN}#> Client {request.sid} from {request.remote_addr} authenticated successfully at {now_time}.{bcolors.ENDC}')
     else:
-        print(f'#> Client {request.sid} authentication failed. Disconnecting...')
+        print(f'{bcolors.FAIL}#> Client {request.sid} authentication failed. Disconnecting...{bcolors.ENDC}')
         emit('authentication_to_client', {'success': False, 'msg': 'Authentication Failed due to inavlid passcode!'}, broadcast=False)
         disconnect(request.sid)
 
@@ -249,14 +249,6 @@ def start_server_clipboard_thread():
         QUITTING = True
         print('\n# Received keyboard interrupt, quitting...')
         exit()
-
-def get_shortened_url(url):
-    # Make a request to bitly.ws to shorten the URL
-    shortne_service_url = f"https://shorter.me/page/shorten"
-    response = requests.post(shortne_service_url, data={'url': url})
-    if response.status_code == 200:
-        shortened_url = response.json()['data']
-        print(f' * Shortened URL: {shortened_url}')
 
 def run_server():
     global ADVERTISE_SERVER
@@ -580,8 +572,29 @@ def act_as_client():
     run_client()
 
 ##############################################################################################################
-# Main
+# Main / Utility Code
 ##############################################################################################################
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def get_shortened_url(url):
+    # Make a request to bitly.ws to shorten the URL
+    shortne_service_url = f"https://shorter.me/page/shorten"
+    response = requests.post(shortne_service_url, data={'url': url})
+    if response.status_code == 200:
+        shortened_url = response.json()['data']
+        print(f' * Shortened URL: {bcolors.OKGREEN} {shortened_url} {bcolors.ENDC}')
+    else:
+        print(f' * Shortened URL: {bcolors.FAIL} Failed to shorten URL. {bcolors.ENDC}')
+
 def set_ngrok_auth_token():
     global SERVE_ON_NGROK_TUNNEL
     # Read ngrok auth token from file and set it if SERVE_ON_NGROK_TUNNEL is True
