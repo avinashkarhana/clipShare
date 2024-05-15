@@ -274,6 +274,12 @@ def run_server():
     if SERVE_ON_NGROK_TUNNEL:
         ngrok.disconnect(public_url)
         ngrok.kill()
+        if SERVE_ON_NGROK_TUNNEL:
+            try:
+                ngrok.disconnect(public_url)
+                ngrok.kill()
+            except:
+                print("Error stopping ngrok tunnel. But it will be stopped and process will be killed automatically when this process finishes.")
 
 def act_as_server():
     run_server()
@@ -585,15 +591,97 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def get_shortened_url(url):
-    # Make a request to bitly.ws to shorten the URL
-    shortne_service_url = f"https://shorter.me/page/shorten"
-    response = requests.post(shortne_service_url, data={'url': url})
-    if response.status_code == 200:
-        shortened_url = response.json()['data']
-        print(f' * Shortened URL: {bcolors.OKGREEN} {shortened_url} {bcolors.ENDC}')
+def get_shortened_url(url, service_opt="1", custom="clipShare"):
+    custom += str(random.randint(1000, 9999))
+    error = False
+    possible_service_opts = [
+        "1",
+        "2",
+        "3",
+        "4"
+    ]
+    if service_opt not in possible_service_opts:
+        service_opt = possible_service_opts[0]
+    if str(service_opt) == "1":
+        # Make a request to shorter.me to shorten the URL
+        service_url = "https://shorter.me/page/shorten"
+        data = {'url': url}
+        try:
+            response = requests.post(service_url, data=data)
+            if response.status_code == 200:
+                shortened_url = response.json().get('data')
+                print(f' * Shortened URL (shorter.me): {shortened_url}')
+            else:
+                error = True
+        except:
+            error = True
+
+    elif service_opt == "2":
+        # Make a request to smolurl.com API to shorten the URL
+        api_url = "https://smolurl.com/api/links"
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "url": url
+        }
+        try:
+            response = requests.post(api_url, headers=headers, json=data)
+            if response.status_code >= 200 and response.status_code < 300:
+                shortened_url = response.json()['data']['short_url']
+                print(f' * Shortened URL (smolurl.com): {shortened_url}')
+            else:
+                error = True
+        except:
+            error = True
+    elif service_opt == "3":
+        base_url = "https://ulvis.net"
+        api_endpoint = "/api.php"
+        full_url = f"{base_url}{api_endpoint}?url={url}"
+        if custom:
+            full_url += f"&custom={custom}"
+        try:
+            response = requests.get(full_url)
+            if response.status_code == 200:
+                shortened_url = response.text
+                print(f' * Shortened URL (ulvis.net): {shortened_url}')
+            else:
+                error = True
+        except:
+            error = True
+    elif service_opt == "4":
+        # Make a request to api.encurtador.dev to shorten the URL
+        api_url = "https://api.encurtador.dev/encurtamentos"
+        headers = {
+            "Content-Type": "application/json"
+        }
+        data = {
+            "url": url,
+            "codigo": custom
+        }
+        try:
+            response = requests.post(api_url, headers=headers, json=data)
+            if response.status_code == 200:
+                shortened_url = response.json()['urlEncurtada']
+                if shortened_url[:8] != "https":
+                    shortened_url = f"https://{shortened_url}"
+                print(f' * Shortened URL (api.encurtador.dev): {shortened_url}')
+            else:
+                error = True
+        except:
+            error = True
     else:
-        print(f' * Shortened URL: {bcolors.FAIL} Failed to shorten URL. {bcolors.ENDC}')
+        print(f"Invalid service specified. Please choose {possible_service_opts} as service options.")
+    if error:
+        # Try next service
+        current_service_index = possible_service_opts.index(service_opt)
+        next_service_index = current_service_index + 1
+        if next_service_index < len(possible_service_opts):
+            get_shortened_url(url, possible_service_opts[next_service_index])
+        else:
+            print("Couldn't shorten the URL. Please try again later.")
+            return
 
 def set_ngrok_auth_token():
     global SERVE_ON_NGROK_TUNNEL
